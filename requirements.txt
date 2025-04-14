@@ -1,0 +1,9 @@
+streamlit
+python-dotenv
+google-generativeai
+pandas
+numpy 
+matplotlib
+bcrypt
+streamlit-calendar
+supabase
