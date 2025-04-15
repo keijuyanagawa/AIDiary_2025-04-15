@@ -37,7 +37,7 @@ model = None
 try:
     if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         print("Gemini AI Model configured.")
     else:
         st.warning("GEMINI_API_KEY not found. AI features disabled.")
