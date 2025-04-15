@@ -12,6 +12,20 @@ import matplotlib.dates as mdates
 from streamlit_calendar import calendar
 from supabase import create_client, Client
 
+# --- Matplotlib 日本語フォント設定 (Windows) ---
+try:
+    # 利用可能な日本語フォントを試す (Yu Gothic を優先)
+    plt.rcParams['font.family'] = 'Yu Gothic'
+    print("Matplotlib font set to Yu Gothic.") # 確認用ログ
+except Exception as e_font1:
+    st.warning(f"日本語フォント 'Yu Gothic' の設定に失敗しました: {e_font1}. 次に 'MS Gothic' を試します。")
+    try:
+        plt.rcParams['font.family'] = 'MS Gothic'
+        print("Matplotlib font set to MS Gothic.") # 確認用ログ
+    except Exception as e_font2:
+        st.warning(f"日本語フォント 'MS Gothic' の設定にも失敗しました: {e_font2}. システムに日本語フォントがインストールされているか確認してください。")
+        # ここでさらに他のフォント ('Meiryo' など) を試すこともできます
+
 # --- Load Environment Variables ---
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -67,23 +81,24 @@ if 'messages' not in st.session_state:
     st.session_state.messages = [] # Chat messages
 
 # --- Main App Logic ---
-st.set_page_config(page_title="AI Chat Diary", layout="wide")
+st.set_page_config(page_title="AIチャット日記＋感情可視化アプリ", 
+                   layout="wide", page_icon="📝")
 
 # Sidebar (Removed Login/Register/Logout)
 with st.sidebar:
-    st.title("AI Chat Diary")
+    st.title("AIチャット日記＋感情可視化アプリ")
     # Simplified Navigation
     st.sidebar.header("Navigation")
-    if st.button("Write Diary", key="nav_write"):
+    if st.button("日記を書く", key="nav_write"):
          st.session_state.page = 'Diary'
          st.rerun()
-    if st.button("View Entries", key="nav_view"):
+    if st.button("投稿を見る", key="nav_view"):
          st.session_state.page = 'View'
          st.rerun()
-    if st.button("Visualize Emotions", key="nav_visualize"):
+    if st.button("感情を可視化する", key="nav_visualize"):
          st.session_state.page = 'Visualize'
          st.rerun()
-    if st.button("Calendar View", key="nav_calendar"):
+    if st.button("カレンダーを見る", key="nav_calendar"):
          st.session_state.page = 'Calendar'
          st.rerun()
 
@@ -97,7 +112,7 @@ def add_diary_entry(body, entry_datetime=None):
     try:
         dt_to_use = entry_datetime if entry_datetime else datetime.now()
         if dt_to_use > datetime.now():
-             st.error("Cannot save entry for a future date/time.")
+             st.error("未来の日時では日記を保存できません。")
              return None, None
 
         timestamp_str = dt_to_use.isoformat() # Use ISO format for Supabase timestampz
@@ -113,16 +128,16 @@ def add_diary_entry(body, entry_datetime=None):
             return entry_id, timestamp_str
         else:
             # Log error details if possible
-            st.error(f"Database error adding entry: {data}")
+            st.error(f"データベースへの登録エラー: {data}")
             return None, None
     except Exception as e:
-        st.error(f"Database error adding entry: {e}")
+        st.error(f"データベースへの登録エラー: {e}")
         return None, None
 
 def update_entry_summary(entry_id, summary):
     """Updates the summary for a given entry ID."""
     if not supabase:
-        st.error("Supabase client not configured.")
+        st.error("Supabase client が設定されていません。")
         return False
     try:
         data, count = supabase.table(ENTRIES_TABLE)\
@@ -132,13 +147,13 @@ def update_entry_summary(entry_id, summary):
         # Check if update was successful (count might be useful, or check data content)
         return True # Assuming success if no exception
     except Exception as e:
-        st.error(f"Database error updating summary: {e}")
+        st.error(f"データベースへの更新エラー: {e}")
         return False
 
 def add_emotion_record(entry_id, recorded_at, emotion_label, emotion_score=None):
     """Adds an emotion record linked to a diary entry."""
     if not supabase:
-        st.error("Supabase client not configured.")
+        st.error("Supabase client が設定されていません。")
         return False
     try:
         # Ensure recorded_at is in ISO format if it's not already
@@ -159,14 +174,14 @@ def add_emotion_record(entry_id, recorded_at, emotion_label, emotion_score=None)
             .execute()
         return True # Assuming success if no exception
     except Exception as e:
-        st.error(f"Database error adding emotion record: {e}")
+        st.error(f"データベースへの感情記録の登録エラー: {e}")
         return False
 
 # --- Function to get distinct emotions for filtering ---
 def get_distinct_emotions():
     """Fetches distinct emotion labels recorded."""
     if not supabase:
-        st.error("Supabase client not configured.")
+        st.error("Supabase client が設定されていません。")
         return []
     emotions = []
     try:
@@ -184,14 +199,14 @@ def get_distinct_emotions():
         else:
             # Handle potential errors in data structure
             if isinstance(data, tuple) and len(data)>0 and isinstance(data[0],dict) and data[0].get('message'):
-               st.error(f"Database error fetching distinct emotions: {data[0]['message']}")
+               st.error(f"感情を取得する際のデータベースエラー: {data[0]['message']}")
             elif data and len(data) > 1 and not data[1]: # Success but empty result
                 pass # No emotions found is not an error state
             else:
-               st.error(f"Unknown error fetching distinct emotions: {data}")
+               st.error(f"不明なエラー: {data}")
 
     except Exception as e:
-        st.error(f"Database error fetching distinct emotions: {e}")
+        st.error(f"感情ラベルの取得エラー: {e}")
     return emotions
 
 
@@ -269,15 +284,15 @@ def get_filtered_entries(keyword=None, start_date=None, end_date=None, selected_
         else:
             # Handle potential errors
             if isinstance(data, tuple) and len(data)>0 and isinstance(data[0],dict) and data[0].get('message'):
-               st.error(f"Database error fetching filtered entries: {data[0]['message']}")
+               st.error(f"データベースへのフィルター適用エラー: {data[0]['message']}")
             elif data and len(data) > 1 and not data[1]:
                 pass # No entries found is valid
             else:
-               st.error(f"Unknown error fetching filtered entries: {data}")
+               st.error(f"不明なエラー: {data}")
 
 
     except Exception as e:
-        st.error(f"Database error fetching filtered entries: {e}")
+        st.error(f"データベースへのフィルター適用エラー: {e}")
     return entries
 
 
@@ -285,7 +300,7 @@ def get_filtered_entries(keyword=None, start_date=None, end_date=None, selected_
 def get_emotion_data(start_date=None, end_date=None):
     """Fetches emotion data within a date range."""
     if not supabase:
-        st.error("Supabase client not configured.")
+        st.error("Supabase client が設定されていません。")
         return []
     emotion_data = []
     try:
@@ -309,14 +324,14 @@ def get_emotion_data(start_date=None, end_date=None):
         else:
              # Handle potential errors
             if isinstance(data, tuple) and len(data)>0 and isinstance(data[0],dict) and data[0].get('message'):
-               st.error(f"Database error fetching emotion data: {data[0]['message']}")
+               st.error(f"データベースへの感情データの取得エラー: {data[0]['message']}")
             elif data and len(data) > 1 and not data[1]:
                 pass # No data found is valid
             else:
-               st.error(f"Unknown error fetching emotion data: {data}")
+               st.error(f"不明なエラー: {data}")
 
     except Exception as e:
-        st.error(f"Database error fetching emotion data: {e}")
+        st.error(f"データベースへの感情データの取得エラー: {e}")
     return emotion_data
 
 
@@ -324,7 +339,7 @@ def get_emotion_data(start_date=None, end_date=None):
 def get_entry_dates():
     """Fetches distinct dates (YYYY-MM-DD) where entries exist."""
     if not supabase:
-        st.error("Supabase client not configured.")
+        st.error("Supabase client が設定されていません。")
         return []
     entry_dates = []
     try:
@@ -343,14 +358,14 @@ def get_entry_dates():
         else:
             # Handle potential errors
             if isinstance(data, tuple) and len(data)>0 and isinstance(data[0],dict) and data[0].get('message'):
-               st.error(f"Database error fetching entry dates: {data[0]['message']}")
+               st.error(f"データベースへの投稿日付の取得エラー: {data[0]['message']}")
             elif data and len(data) > 1 and not data[1]:
                 pass # No dates found is valid
             else:
-               st.error(f"Unknown error fetching entry dates: {data}")
+               st.error(f"不明なエラー: {data}")
 
     except Exception as e:
-        st.error(f"Database error fetching entry dates: {e}")
+        st.error(f"データベースへの投稿日付の取得エラー: {e}")
     return entry_dates
 
 
@@ -358,7 +373,7 @@ def get_entry_dates():
 def get_on_this_day_entries():
     """Fetches entries from the same month/day in previous years."""
     if not supabase:
-        st.error("Supabase client not configured.")
+        st.error("Supabase client が設定されていません。")
         return []
     entries = []
     try:
@@ -386,7 +401,7 @@ def get_on_this_day_entries():
             for entry in all_past_entries:
                 try:
                     # Parse ISO timestamp and check month/day
-                    created_dt = datetime.fromisoformat(entry['created_at'].replace('Z', '+00:00')) # Handle timezone if needed
+                    created_dt = datetime.fromisoformat(entry['created_at'].replace('Z', '+00:00'))
                     if created_dt.strftime("%m-%d") == current_month_day:
                         # Extract emotion data similarly to get_filtered_entries
                         emotion_info = entry.get('emotions')
@@ -411,14 +426,14 @@ def get_on_this_day_entries():
         else:
              # Handle potential errors
             if isinstance(data, tuple) and len(data)>0 and isinstance(data[0],dict) and data[0].get('message'):
-               st.error(f"Database error fetching 'On This Day' entries: {data[0]['message']}")
+               st.error(f"データベースへの'On This Day'投稿の取得エラー: {data[0]['message']}")
             elif data and len(data) > 1 and not data[1]:
                 pass # No past entries is valid
             else:
-               st.error(f"Unknown error fetching 'On This Day' entries: {data}")
+               st.error(f"不明なエラー: {data}")
 
     except Exception as e:
-        st.error(f"Database error fetching 'On This Day' entries: {e}")
+        st.error(f"データベースへの'On This Day'投稿の取得エラー: {e}")
     return entries # Return entries matching the criteria
 
 
@@ -426,7 +441,7 @@ def get_on_this_day_entries():
 def delete_entry(entry_id):
     """Deletes a diary entry and associated emotion records by entry ID."""
     if not supabase:
-        st.error("Supabase client not configured.")
+        st.error("Supabase client が設定されていません。")
         return False
     try:
         # Need to delete from emotions table first due to potential foreign key,
@@ -441,7 +456,7 @@ def delete_entry(entry_id):
         print(f"Attempted deletion for entry {entry_id}.") # For debugging
         return True # Assume success if no exception
     except Exception as e:
-        st.error(f"Database error deleting entry {entry_id}: {e}")
+        st.error(f"データベースへの投稿の削除エラー: {entry_id}: {e}")
         return False 
 
 # --- AI Helper Functions ---
@@ -449,7 +464,7 @@ def generate_summary(text):
     # Keep this function to generate a very short summary for list view/expanders
     """Generates a very short (1-sentence) summary using the Gemini model."""
     if not model:
-        return "(AI model not configured)"
+        return "(AIモデルが設定されていません)"
     try:
         prompt = f"以下のテキストを1文で簡潔に要約してください。:\n\n{text}"
         response = model.generate_content(prompt)
@@ -457,11 +472,11 @@ def generate_summary(text):
         if response and hasattr(response, 'text'):
            return response.text.strip()
         else:
-           st.error(f"Invalid response structure from AI summary: {response}")
-           return "(Error generating summary: Invalid AI response)"
+           st.error(f"AI要約の生成エラー: {response}")
+           return "(要約の生成に失敗しました: 無効なAI応答)"
     except Exception as e:
-        st.error(f"Error generating short summary: {e}")
-        return "(Error generating summary)"
+        st.error(f"短い要約の生成エラー: {e}")
+        return "(要約の生成に失敗しました)"
 
 def analyze_emotion(text):
     """Analyzes emotion using the Gemini model, returning a dict {label: str, score: float or None}.
@@ -484,7 +499,7 @@ def analyze_emotion(text):
         response = model.generate_content(prompt)
         # Add safety checks for response structure before parsing
         if not (response and hasattr(response, 'text')):
-            st.error(f"Invalid response structure from AI emotion analysis: {response}")
+            st.error(f"AI感情分析の生成エラー: {response}")
             return {"label": "Error", "score": None}
 
         try:
@@ -513,11 +528,11 @@ def analyze_emotion(text):
 
                 return {"label": str(result['emotion_label']), "score": score}
             else:
-                st.warning(f"AI format error or expected keys missing in JSON: {response_text}")
+                st.warning(f"AIフォーマットエラーまたはJSONのキーが不足しています: {response_text}")
                 label = result.get('emotion_label', "Unknown") if isinstance(result, dict) else "Unknown"
                 return {"label": str(label), "score": None} # Fallback score to None
         except json.JSONDecodeError:
-            st.warning(f"JSON parse error for AI response: {response.text}")
+            st.warning(f"AI応答のJSONパースエラー: {response.text}")
             # Simple fallback based on text content (less reliable)
             label = "Unknown"
             text_lower = response.text.lower()
@@ -528,10 +543,10 @@ def analyze_emotion(text):
                     break
             return {"label": label, "score": None}
         except Exception as e:
-             st.error(f"Error processing AI emotion response content: {e}")
+             st.error(f"AI感情応答の内容の処理エラー: {e}")
              return {"label": "Error", "score": None}
     except Exception as e:
-        st.error(f"Error calling or receiving from Gemini AI for emotion analysis: {e}")
+        st.error(f"AI感情分析の呼び出しエラーまたは応答の受け取りエラー: {e}")
         return {"label": "Error", "score": None}
 
 
@@ -545,23 +560,23 @@ def summarize_chat_for_diary(chat_history):
 
     # Prompt doesn't strongly depend on a specific user, can remain similar
     prompt = f"""
-    以下のユーザーとAIアシスタントの会話履歴を基に、ユーザー視点での自然な日記エントリーを生成してください。
+    以下のユーザーとAIアシスタントの会話履歴を基に、ユーザー視点での自然な日記を生成してください。
     会話の内容を整理・要約し、ユーザー（"user"の発言者）が一人称（私）で書いたようなスタイルで記述してください。
     特にユーザーが話した出来事、考え、感情を中心にまとめてください。
 
     会話履歴:
     {history_text}
 
-    生成する日記エントリー:
+    生成する日記:
     """
     try:
         response = model.generate_content(prompt)
         if response and hasattr(response, 'text'):
            return response.text.strip()
         else:
-           st.error(f"Invalid response structure from AI diary summary: {response}")
+           st.error(f"AI日記要約の生成エラー: {response}")
            user_messages = [m["content"] for m in chat_history if m["role"] == "user"]
-           return "\n".join(user_messages) if user_messages else "(日記の生成に失敗しました: Invalid AI Response)"
+           return "\n".join(user_messages) if user_messages else "(日記の生成に失敗しました: 無効なAI応答)"
     except Exception as e:
         st.error(f"日記の生成中にエラーが発生しました: {e}")
         user_messages = [m["content"] for m in chat_history if m["role"] == "user"]
@@ -583,10 +598,10 @@ def get_ai_response(chat_history):
     user_agreed = any(keyword in last_user_message.lower() for keyword in agreement_keywords)
 
     if ai_suggested_save and user_agreed:
-        print("User agreed to save. Summarizing chat...")
+        print("ユーザーが保存を同意しました。会話を要約して日記を作成しています...")
         with st.spinner("会話を要約して日記を作成しています..."):
-            diary_body = summarize_chat_for_diary(chat_history[:-1]) # Exclude the agreement message
-        # Check if summarization failed
+            diary_body = summarize_chat_for_diary(chat_history[:-1]) # 同意メッセージを除外
+        # 要約に失敗したかどうかを確認
         if diary_body.startswith("(AIによる日記生成に失敗しました)") or diary_body.startswith("(日記の生成に失敗しました"):
              st.error("AIによる日記の要約に失敗したため、保存できませんでした。")
              return "申し訳ありません、日記の要約に失敗しました。" # Return an error message instead of the action dict
@@ -655,9 +670,9 @@ def get_ai_response(chat_history):
         # Attempt to access response details for debugging, e.g., safety feedback
         try:
              if response and response.prompt_feedback:
-                  st.error(f"Prompt Feedback: {response.prompt_feedback}")
+                  st.error(f"プロンプトフィードバック: {response.prompt_feedback}")
         except (AttributeError, NameError):
-             pass # Ignore if feedback or response object isn't available
+             pass # フィードバックまたは応答オブジェクトが利用できない場合は無視
         return "申し訳ありません、応答を生成できませんでした。" 
 
 # Main Content Area (No login check needed)
@@ -665,14 +680,14 @@ if not supabase:
      st.error("Supabase is not configured. Please check your environment variables (SUPABASE_URL, SUPABASE_KEY).")
 elif st.session_state.page == 'Diary':
     st.header("AI Chat Diary")
-    st.subheader("Write Your Diary Entry - Chat with AI")
+    st.subheader("日記を書く - AIとチャット")
 
     # --- Display "On This Day" Entries ---
     past_entries = get_on_this_day_entries()
     if past_entries:
         st.markdown("---")
         with st.container(border=True):
-            st.subheader(f":calendar: On this day in the past...")
+            st.subheader(f":calendar: 過去の同じ日...")
             for entry in past_entries:
                 try:
                     # Attempt to parse ISO format with timezone offset
@@ -689,14 +704,14 @@ elif st.session_state.page == 'Diary':
                     emotion_label = entry.get('emotion_label', "Unknown")
                     emotion_score = entry.get('emotion_score')
                     emotion_score_str = f" (Score: {emotion_score:.2f})" if emotion_score is not None else ""
-                    st.write(f"Detected Emotion: {emotion_label}{emotion_score_str}")
+                    st.write(f"検出された感情: {emotion_label}{emotion_score_str}")
         st.markdown("---")
 
     # --- Date/Time Selection ---
-    st.markdown("**Select Entry Date and Time:**")
+    st.markdown("**日記の日時を選択してください:**")
     col1, col2 = st.columns(2)
     with col1:
-        selected_date = st.date_input("Date", value=date.today(), max_value=date.today(), key="entry_date", label_visibility="collapsed")
+        selected_date = st.date_input("日付", value=date.today(), max_value=date.today(), key="entry_date", label_visibility="collapsed")
     with col2:
         # Get current time considering local timezone if possible, default to now()
         try:
@@ -709,15 +724,15 @@ elif st.session_state.page == 'Diary':
     entry_dt = None
     try:
         entry_dt = datetime.combine(selected_date, selected_time)
-        st.caption(f"Selected entry time: {entry_dt.strftime('%Y-%m-%d %H:%M')}")
+        st.caption(f"選択された日時: {entry_dt.strftime('%Y-%m-%d %H:%M')}")
     except TypeError:
-        st.error("Invalid date or time selected.")
+        st.error("選択された日付または時間が無効です。")
         entry_dt = None # Ensure it's None if combination fails
     st.markdown("---")
 
 
     # --- Chat History Display ---
-    st.markdown("**Chat with AI Assistant:**")
+    st.markdown("**AIアシスタントとチャット:**")
     chat_container = st.container(height=400)
     with chat_container:
          if not st.session_state.messages:
@@ -815,23 +830,23 @@ elif st.session_state.page == 'Diary':
     st.markdown("---")
 
     # --- Manual Save Button ---
-    if st.button("[手動保存] 現在の会話から日記を作成 (AI要約なし)"):
+    if st.button("[保存] 現在の会話から日記を作成"):
         user_messages = [m["content"] for m in st.session_state.messages if m["role"] == "user"]
         diary_body_combined = "\n".join(user_messages)
 
         if diary_body_combined:
-            st.warning("手動保存を実行します。AIによる会話全体の要約は行われません。")
+            st.warning("保存を実行します。AIによる会話全体の要約は行われません。")
             if entry_dt is None:
                 st.warning("日記の日時が無効なため、保存を中断しました。")
             elif entry_dt > datetime.now():
                 st.error("未来の日時で日記を保存することはできません。")
             else:
-                with st.spinner('手動で日記を保存し、分析しています...'):
+                with st.spinner('日記を保存し、分析しています...'):
                     entry_id, entry_creation_time_iso = add_diary_entry(diary_body_combined, entry_datetime=entry_dt)
                     if entry_id and entry_creation_time_iso:
-                        st.info(f"手動保存完了 (ID: {entry_id}). 分析中...")
+                        st.info(f"保存完了 (ID: {entry_id}). 分析中...")
                         analysis_success = True
-                        summary_short = "(手動保存)"
+                        summary_short = "(保存)"
                         emotion_result = {"label": "Unknown", "score": None}
                         if model:
                             summary_short = generate_summary(diary_body_combined)
@@ -848,14 +863,14 @@ elif st.session_state.page == 'Diary':
                             analysis_success = False # Mark as not fully analyzed
 
                         if analysis_success:
-                             st.success(f"手動保存・分析完了！ Summary: '{summary_short}', Emotion: {emotion_result.get('label', 'N/A')}")
+                             st.success(f"保存・分析完了！ Summary: '{summary_short}', Emotion: {emotion_result.get('label', 'N/A')}")
                         else:
-                             st.warning("手動保存は完了しましたが、分析で問題発生。")
+                             st.warning("保存は完了しましたが、分析で問題発生。")
                         st.session_state.messages = [] # Clear chat
                         py_time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("手動での日記保存に失敗しました。")
+                        st.error("日記保存に失敗しました。")
         else: # No user messages to save
             st.warning("会話内容がありません。")
 
@@ -876,7 +891,7 @@ elif st.session_state.page == 'View':
             submitted = st.form_submit_button("Apply Filters")
             if submitted:
                 if filter_start_date and filter_end_date and filter_start_date > filter_end_date:
-                    st.error("Start date cannot be after end date.")
+                    st.error("開始日は終了日よりも前でなければなりません。")
                 else:
                     # Update session state with new filter values
                     st.session_state.keyword_filter = filter_keyword
@@ -905,7 +920,7 @@ elif st.session_state.page == 'View':
 
     if entries:
         entry_count = len(entries)
-        st.write(f"Found {entry_count} entries matching criteria." if st.session_state.filters_applied else f"Found {entry_count} total entries.")
+        st.write(f"条件に一致する{entry_count}件の日記を見つけました。" if st.session_state.filters_applied else f"{entry_count}件の日記を見つけました。")
         for entry in entries:
             entry_id_for_loop = entry['id'] # Use a distinct variable for the button key
             try:
@@ -924,7 +939,7 @@ elif st.session_state.page == 'View':
                 emotion_label = entry.get('emotion_label', "Unknown")
                 emotion_score = entry.get('emotion_score')
                 emotion_score_str = f" (Score: {emotion_score:.2f})" if emotion_score is not None else ""
-                st.write(f"Detected Emotion: {emotion_label}{emotion_score_str}")
+                st.write(f"検出された感情: {emotion_label}{emotion_score_str}")
 
                 # --- Add Delete Button ---
                 st.markdown("---") # Separator before button
@@ -941,15 +956,15 @@ elif st.session_state.page == 'View':
                         # Keep the entry visible until successful deletion/refresh
 
     elif st.session_state.filters_applied:
-        st.info("No entries found matching your filter criteria.")
+        st.info("条件に一致する日記は見つかりませんでした。")
     else:
-        st.info("You haven't written any diary entries yet.")
+        st.info("まだ日記を書いていません。")
 
 elif st.session_state.page == 'Visualize':
-    st.subheader("Visualize Emotions Over Time")
+    st.subheader("時間経過に沿った感情の可視化")
     col1, col2 = st.columns(2)
     with col1:
-        viz_start = st.date_input("Start Date", value=st.session_state.viz_start_date, key="viz_start_date_picker")
+        viz_start = st.date_input("開始日", value=st.session_state.viz_start_date, key="viz_start_date_picker")
     with col2:
         viz_end = st.date_input("End Date", value=st.session_state.viz_end_date, key="viz_end_date_picker")
 
@@ -958,7 +973,7 @@ elif st.session_state.page == 'Visualize':
     st.session_state.viz_end_date = viz_end
 
     if viz_start and viz_end and viz_start > viz_end:
-        st.error("Start date cannot be after end date for visualization.")
+        st.error("開始日は終了日よりも前でなければなりません。")
     else:
         emotion_data = get_emotion_data(viz_start, viz_end) # Removed user_id
 
@@ -1016,9 +1031,9 @@ elif st.session_state.page == 'Visualize':
                         except Exception:
                              pass # Ignore annotation errors
 
-                    ax.set_title('Sentiment Timeline')
+                    ax.set_title('感情のタイムライン')
                     ax.set_xlabel('Time')
-                    ax.set_ylabel('Sentiment Score (-1 to 1)')
+                    ax.set_ylabel('感情スコア (-1 to 1)')
                     ax.set_ylim(-1.1, 1.1) # Consistent Y-axis
                     ax.legend()
                     plt.xticks(rotation=45)
@@ -1028,15 +1043,15 @@ elif st.session_state.page == 'Visualize':
                     plt.tight_layout()
                     st.pyplot(fig)
 
-                    with st.expander("Show Data with Sentiment Values"):
+                    with st.expander("感情値を含むデータを表示"):
                          st.dataframe(df[['recorded_at', 'emotion_label', 'emotion_score', 'sentiment_value']])
                 else:
-                    st.info("No valid emotion data found for the selected period after processing.")
+                    st.info("選択された期間の感情データは見つかりませんでした。")
         else: # No emotion data returned from DB initially
-            st.info("No emotion data recorded yet for the selected period.")
+            st.info("選択された期間の感情データは記録されていません。")
 
 elif st.session_state.page == 'Calendar':
-    st.subheader("Calendar View")
+    st.subheader("カレンダー表示")
     entry_dates = get_entry_dates() # Removed user_id
     calendar_events = []
     if entry_dates:
@@ -1051,7 +1066,7 @@ elif st.session_state.page == 'Calendar':
                     #"url": f"/?page=View&date={entry_date_str}" # Optional: Link to view page filtered by date
                 })
             except ValueError:
-                print(f"Skipping invalid date format for calendar: {entry_date_str}")
+                print(f"カレンダーの無効な日付形式をスキップ: {entry_date_str}")
 
     calendar_options = {
         "headerToolbar": {
@@ -1076,4 +1091,4 @@ elif st.session_state.page == 'Calendar':
     # print(calendar_state) # For debugging what the component returns
 
     if not entry_dates:
-         st.info("No diary entries found to display on the calendar.") 
+         st.info("カレンダーに表示する日記は見つかりませんでした。") 
