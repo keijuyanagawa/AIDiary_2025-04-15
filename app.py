@@ -81,8 +81,24 @@ if 'messages' not in st.session_state:
     st.session_state.messages = [] # Chat messages
 
 # --- Main App Logic ---
-st.set_page_config(page_title="AIチャット日記＋感情可視化アプリ", 
+st.set_page_config(page_title="AIチャット日記＋感情可視化アプリ", \
                    layout="wide", page_icon="📝")
+
+# --- CSSファイルの読み込み関数 ---
+def load_css(file_path):
+    """指定されたCSSファイルを読み込み、スタイルタグとして返す関数"""
+    try:
+        with open(file_path, "r") as f:
+            css = f.read()
+            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+            print(f"CSSファイル '{file_path}' を読み込みました。") # 読み込み確認用
+    except FileNotFoundError:
+        st.error(f"エラー: CSSファイル '{file_path}' が見つかりません。")
+    except Exception as e:
+        st.error(f"CSSファイルの読み込み中にエラーが発生しました: {e}")
+
+# CSSファイルを読み込む
+load_css("static/style.css")
 
 # Sidebar (Removed Login/Register/Logout)
 with st.sidebar:
