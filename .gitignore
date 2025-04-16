@@ -1,0 +1,11 @@
+# Environment variables, database, cache, IDE settings, OS files
+.env
+diary_app.db
+*.db-journal
+__pycache__/
+*.py[cod]
+.streamlit/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db 
