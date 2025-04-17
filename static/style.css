@@ -1,0 +1,29 @@
+/* static/style.css */
+
+.st-emotion-cache-b499ls {
+    padding-top: 3rem;
+}
+
+/* 「日記を書く - AIとチャット」タイトルのスタイル調整 */
+h3#\39 8ba5361 { /* IDが数字で始まるためエスケープ */
+    font-size: 1.2rem; /* 文字サイズを小さくする */
+}
+
+/* 日付と時刻選択ブロック(stHorizontalBlock)を常にflex表示にし、折り返さない */
+div.stHorizontalBlock:has(div[data-testid="stDateInput"]) {
+    display: flex !important;
+    flex-wrap: nowrap !important; /* 常に横並びにする */
+    /* gap: 1rem; */ /* gap プロパティは削除 */
+}
+
+/* 日付と時刻選択のカラム(stColumn)の幅を調整し、左右にパディングを追加 */
+div.stHorizontalBlock:has(div[data-testid="stDateInput"]) > div.stColumn {
+    flex-basis: 0 !important; /* flex-basisを0にしてgrow/shrinkで幅を決定 */
+    flex-grow: 1 !important; /* 利用可能なスペースを均等に分配 */
+    flex-shrink: 1 !important; /* 必要に応じて均等に縮小 */
+    min-width: 0; /* flexアイテムの最小幅問題を回避 */
+    padding-left: 0.5rem !important; /* 左パディングを追加 */
+    padding-right: 0.5rem !important; /* 右パディングを追加 */
+}
+
+

@@ -1,0 +1,10 @@
+#!/bin/sh
+'''exec' "/Users/yaoki/Library/CloudStorage/GoogleDrive-yaoki.kobayashi@temper.co.jp/マイドライブ/Empire Art/Tech0/プログラムフォルダ/Tech0課題/Step2 発表用/AIDiary_2025-04-15/venv.tokyo/bin/python" "$0" "$@"
+' '''
+# -*- coding: utf-8 -*-
+import re
+import sys
+from streamlit.web.cli import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())
